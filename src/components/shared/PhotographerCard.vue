@@ -100,6 +100,7 @@ function formatRate(rate) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-clamp: 2;
 }
 .gap-1 { gap: 4px; }
 </style>
