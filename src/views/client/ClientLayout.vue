@@ -2,7 +2,8 @@
   <div>
     <NavBar />
     <v-container style="max-width:1100px" class="py-8">
-      <!-- Sub-nav tabs for client -->
+
+      <!-- Client sub-navigation tabs -->
       <div class="client-tabs mb-6">
         <v-btn
           v-for="tab in tabs"
@@ -13,11 +14,13 @@
           :active="$route.name === tab.name"
           active-color="primary"
           class="mr-1"
+          rounded="lg"
         >
           <v-icon start size="16">{{ tab.icon }}</v-icon>
           {{ tab.label }}
         </v-btn>
       </div>
+
       <router-view />
     </v-container>
   </div>
@@ -27,9 +30,24 @@
 import NavBar from '@/components/shared/NavBar.vue'
 
 const tabs = [
-  { name: 'ClientBookings', label: 'My Bookings', icon: 'mdi-calendar-check-outline', to: { name: 'ClientBookings' } },
-  { name: 'ClientMessages', label: 'Messages',    icon: 'mdi-message-outline',         to: { name: 'ClientMessages' } },
-  { name: 'ClientProfile',  label: 'My Profile',  icon: 'mdi-account-outline',         to: { name: 'ClientProfile' } },
+  {
+    name: 'ClientBookings',
+    label: 'My Bookings',
+    icon: 'mdi-calendar-check-outline',
+    to: { name: 'ClientBookings' },
+  },
+  {
+    name: 'ClientMessages',
+    label: 'Messages',
+    icon: 'mdi-message-outline',
+    to: { name: 'ClientMessages' },
+  },
+  {
+    name: 'ClientProfile',
+    label: 'My Profile',
+    icon: 'mdi-account-outline',
+    to: { name: 'ClientProfile' },
+  },
 ]
 </script>
 

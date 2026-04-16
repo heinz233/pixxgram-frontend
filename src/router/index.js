@@ -18,7 +18,7 @@ const routes = [
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/auth/ForgotPasswordView.vue') },
   { path: '/reset-password',  name: 'ResetPassword',  component: () => import('@/views/auth/ResetPasswordView.vue') },
 
-  // ── Browse ───────────────────────────────────────────────
+  // ── Browse (public) ──────────────────────────────────────
   { path: '/photographers',     name: 'Photographers',       component: () => import('@/views/BrowseView.vue') },
   { path: '/photographers/:id', name: 'PhotographerProfile', component: () => import('@/views/PhotographerDetailView.vue') },
 
@@ -86,6 +86,7 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'Login', query: { redirect: to.fullPath } })
   }
 
+  // Only block if logged in AND role is loaded AND doesn't match
   if (to.meta.role && auth.isLoggedIn && auth.roleName && auth.roleName !== to.meta.role) {
     return next({ name: 'Unauthorized' })
   }
