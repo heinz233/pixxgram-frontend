@@ -3,65 +3,61 @@
     <div class="d-flex align-center justify-space-between mb-6">
       <div>
         <h2 class="text-h6 font-weight-bold">Activity Feed</h2>
-        <p class="text-medium-emphasis mt-1">All platform events in real time</p>
+        <p class="text-medium-emphasis text-body-2 mt-1">All platform events</p>
       </div>
-      <div class="d-flex gap-2">
-        <v-btn
-          variant="tonal" color="primary" size="small"
-          prepend-icon="mdi-refresh"
-          :loading="loading"
-          @click="fetchAll"
-        >
-          Refresh
-        </v-btn>
-      </div>
+      <v-btn variant="tonal" color="primary" size="small"
+        prepend-icon="mdi-refresh" :loading="loading" @click="loadAll">
+        Refresh
+      </v-btn>
     </div>
 
     <!-- Filter tabs -->
-    <div class="d-flex gap-2 mb-6 flex-wrap">
-      <v-btn
-        v-for="f in filters"
-        :key="f.value"
+    <div class="d-flex flex-wrap mb-6" style="gap:8px">
+      <v-btn v-for="f in filters" :key="f.value"
         :variant="activeFilter === f.value ? 'flat' : 'outlined'"
         :color="activeFilter === f.value ? 'primary' : 'default'"
         size="small" rounded="lg"
-        @click="activeFilter = f.value"
-      >
+        @click="activeFilter = f.value">
         <v-icon start size="14">{{ f.icon }}</v-icon>
         {{ f.label }}
-        <v-chip v-if="counts[f.value]" size="x-small" :color="activeFilter === f.value ? 'white' : 'primary'"
-          class="ml-2" style="height:16px">
-          {{ counts[f.value] }}
+        <v-chip v-if="eventCounts[f.value]" size="x-small"
+          :color="activeFilter === f.value ? 'white' : 'primary'" class="ml-2">
+          {{ eventCounts[f.value] }}
         </v-chip>
       </v-btn>
     </div>
 
-    <!-- Timeline -->
+    <!-- Loading -->
     <div v-if="loading" class="text-center py-12">
-      <v-progress-circular indeterminate color="primary" />
+      <v-progress-circular indeterminate color="primary" size="44" />
+      <p class="mt-4 text-medium-emphasis">Loading activity...</p>
     </div>
 
-    <div v-else-if="!filteredEvents.length" class="text-center py-16">
+    <!-- Error -->
+    <v-alert v-else-if="loadError" type="error" variant="tonal" rounded="xl" class="mb-4">
+      <p class="font-weight-bold mb-1">Could not load activity</p>
+      <p class="text-body-2 mb-3">{{ loadError }}</p>
+      <v-btn size="small" color="error" variant="tonal" @click="loadAll">Retry</v-btn>
+    </v-alert>
+
+    <!-- Empty -->
+    <div v-else-if="!visibleEvents.length" class="text-center py-16">
       <v-icon size="64" color="medium-emphasis">mdi-timeline-outline</v-icon>
-      <p class="mt-3 text-medium-emphasis">No {{ activeFilter === 'all' ? '' : activeFilter }} activity yet.</p>
+      <p class="mt-3 text-medium-emphasis">No activity yet.</p>
     </div>
 
+    <!-- Timeline -->
     <div v-else class="timeline">
-      <div
-        v-for="(event, i) in filteredEvents"
-        :key="i"
-        class="timeline-item"
-        :class="{ 'last': i === filteredEvents.length - 1 }"
-      >
-        <!-- Dot -->
-        <div class="timeline-dot" :class="event.dotColor">
-          <v-icon size="14" color="white">{{ event.icon }}</v-icon>
+      <div v-for="(event, i) in visibleEvents" :key="i"
+        class="timeline-item" :class="{ last: i === visibleEvents.length - 1 }">
+
+        <div class="timeline-dot" :class="event.dotClass">
+          <v-icon size="13" color="white">{{ event.icon }}</v-icon>
         </div>
 
-        <!-- Content -->
         <v-card rounded="xl" class="timeline-card pa-4 ml-4 mb-3">
           <div class="d-flex align-start justify-space-between">
-            <div class="d-flex align-start gap-3">
+            <div class="d-flex align-start" style="gap:12px">
               <v-avatar size="32" :color="event.avatarColor" variant="tonal">
                 <span class="text-caption font-weight-bold">{{ event.initial }}</span>
               </v-avatar>
@@ -71,7 +67,9 @@
                   <span class="text-medium-emphasis"> {{ event.action }} </span>
                   <strong v-if="event.target">{{ event.target }}</strong>
                 </p>
-                <p v-if="event.detail" class="text-caption text-medium-emphasis mt-1">{{ event.detail }}</p>
+                <p v-if="event.detail" class="text-caption text-medium-emphasis mt-1">
+                  {{ event.detail }}
+                </p>
               </div>
             </div>
             <div class="text-right flex-shrink-0 ml-3">
@@ -87,147 +85,122 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import api from '@/api/axios'
+import { adminApi } from '@/api/admin'
 
-const loading     = ref(true)
-const activeFilter= ref('all')
-const rawEvents   = ref([])
+const loading      = ref(true)
+const loadError    = ref('')
+const activeFilter = ref('all')
+const rawEvents    = ref([])
 
 const filters = [
-  { label: 'All',           value: 'all',          icon: 'mdi-format-list-bulleted' },
-  { label: 'Registrations', value: 'registration',  icon: 'mdi-account-plus-outline' },
-  { label: 'Bookings',      value: 'booking',       icon: 'mdi-calendar-check-outline' },
-  { label: 'Subscriptions', value: 'subscription',  icon: 'mdi-crown-outline' },
-  { label: 'Reports',       value: 'report',        icon: 'mdi-flag-outline' },
-  { label: 'Ratings',       value: 'rating',        icon: 'mdi-star-outline' },
+  { label: 'All',           value: 'all',         icon: 'mdi-format-list-bulleted' },
+  { label: 'Registrations', value: 'registration', icon: 'mdi-account-plus-outline' },
+  { label: 'Bookings',      value: 'booking',      icon: 'mdi-calendar-check-outline' },
+  { label: 'Subscriptions', value: 'subscription', icon: 'mdi-crown-outline' },
+  { label: 'Reports',       value: 'report',       icon: 'mdi-flag-outline' },
+  { label: 'Ratings',       value: 'rating',       icon: 'mdi-star-outline' },
 ]
 
 function formatEvent(item) {
-  const time = new Date(item.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })
-  const base = { id: item.id, time, raw: item }
+  const time = item.created_at
+    ? new Date(item.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })
+    : ''
+  const t = item._type
 
-  if (item.type === 'registration' || item.event_type === 'registration') {
-    return { ...base, type: 'registration', icon: 'mdi-account-plus', dotColor: 'dot-blue', avatarColor: 'blue',
-      actor: item.name || item.user?.name, action: 'joined Pixxgram as a', target: item.role?.name || 'user',
-      initial: (item.name || item.user?.name || '?').charAt(0), chipColor: 'blue' }
+  if (t === 'registration') return {
+    type: 'Registration', icon: 'mdi-account-plus', dotClass: 'dot-blue', avatarColor: 'blue', chipColor: 'blue',
+    actor: item.name, action: 'joined as a', target: item.role?.name || 'user',
+    initial: (item.name || '?').charAt(0), detail: item.email, time,
   }
-  if (item.type === 'booking' || item.event_type === 'booking') {
-    return { ...base, type: 'booking', icon: 'mdi-calendar-check', dotColor: 'dot-teal', avatarColor: 'teal',
-      actor: item.client?.name || item.actor, action: 'booked', target: item.photographer?.name || item.target,
-      detail: item.booking_date ? `Session on ${new Date(item.booking_date).toLocaleDateString()}` : null,
-      initial: (item.client?.name || '?').charAt(0), chipColor: 'teal' }
+  if (t === 'booking') return {
+    type: 'Booking', icon: 'mdi-calendar-check', dotClass: 'dot-teal', avatarColor: 'teal', chipColor: 'teal',
+    actor: item.client?.name || 'Client', action: 'booked', target: item.photographer?.name,
+    initial: (item.client?.name || '?').charAt(0),
+    detail: item.booking_date ? `Session on ${new Date(item.booking_date).toLocaleDateString()}` : null, time,
   }
-  if (item.type === 'subscription' || item.event_type === 'subscription') {
-    return { ...base, type: 'subscription', icon: 'mdi-crown', dotColor: 'dot-amber', avatarColor: 'amber',
-      actor: item.photographer?.name || item.actor, action: 'subscribed to the', target: item.plan + ' plan',
-      detail: `KSh ${Number(item.amount || 0).toLocaleString()} via ${item.payment_method || 'M-Pesa'}`,
-      initial: (item.photographer?.name || '?').charAt(0), chipColor: 'orange' }
+  if (t === 'subscription') return {
+    type: 'Subscription', icon: 'mdi-crown', dotClass: 'dot-amber', avatarColor: 'orange', chipColor: 'orange',
+    actor: item.photographer?.name || 'Photographer', action: 'subscribed to', target: (item.plan || '') + ' plan',
+    initial: (item.photographer?.name || '?').charAt(0),
+    detail: `KSh ${Number(item.amount || 0).toLocaleString()}`, time,
   }
-  if (item.type === 'report' || item.event_type === 'report') {
-    return { ...base, type: 'report', icon: 'mdi-flag', dotColor: 'dot-red', avatarColor: 'red',
-      actor: item.client?.name || item.actor, action: 'reported', target: item.photographer?.name,
-      detail: item.reason,
-      initial: (item.client?.name || '?').charAt(0), chipColor: 'error' }
+  if (t === 'report') return {
+    type: 'Report', icon: 'mdi-flag', dotClass: 'dot-red', avatarColor: 'red', chipColor: 'error',
+    actor: item.client?.name || 'Client', action: 'reported', target: item.photographer?.name,
+    initial: (item.client?.name || '?').charAt(0), detail: item.reason, time,
   }
-  if (item.type === 'rating' || item.event_type === 'rating') {
-    return { ...base, type: 'rating', icon: 'mdi-star', dotColor: 'dot-amber', avatarColor: 'amber',
-      actor: item.client?.name || item.actor, action: `gave ${item.stars} stars to`, target: item.photographer?.name,
-      detail: item.comment,
-      initial: (item.client?.name || '?').charAt(0), chipColor: 'amber' }
+  if (t === 'rating') return {
+    type: 'Rating', icon: 'mdi-star', dotClass: 'dot-amber', avatarColor: 'amber', chipColor: 'amber',
+    actor: item.client?.name || 'Client', action: `gave ${item.stars}★ to`, target: item.photographer?.name,
+    initial: (item.client?.name || '?').charAt(0), detail: item.comment, time,
   }
-  // fallback
-  return { ...base, type: 'event', icon: 'mdi-circle', dotColor: 'dot-grey', avatarColor: 'grey',
-    actor: item.actor || 'System', action: item.description || 'performed an action', target: null,
-    initial: '?', chipColor: 'default' }
+  return { type: 'event', icon: 'mdi-circle', dotClass: 'dot-grey', avatarColor: 'grey', chipColor: 'default',
+    actor: 'System', action: 'event', target: null, initial: '?', detail: null, time }
 }
 
 const events = computed(() => rawEvents.value.map(formatEvent))
 
-const filteredEvents = computed(() =>
+const visibleEvents = computed(() =>
   activeFilter.value === 'all'
     ? events.value
-    : events.value.filter(e => e.type === activeFilter.value)
+    : events.value.filter(e => e.type.toLowerCase() === activeFilter.value)
 )
 
-const counts = computed(() => {
+const eventCounts = computed(() => {
   const c = {}
-  events.value.forEach(e => { c[e.type] = (c[e.type] || 0) + 1 })
+  events.value.forEach(e => {
+    const key = e.type.toLowerCase()
+    c[key] = (c[key] || 0) + 1
+  })
   return c
 })
 
-async function fetchAll() {
-  loading.value = true
+async function loadAll() {
+  loading.value   = true
+  loadError.value = ''
   try {
-    // Try to get a combined activity feed — if endpoint doesn't exist yet,
-    // we'll combine bookings, subscriptions and reports manually
     const [bookRes, subRes, reportRes, ratingRes, userRes] = await Promise.allSettled([
-      api.get('/admin/bookings'),
-      api.get('/admin/subscriptions'),
-      api.get('/admin/reports'),
-      api.get('/admin/ratings'),
-      api.get('/admin/users'),
+      adminApi.bookings(),
+      adminApi.subscriptions(),
+      adminApi.reports(),
+      adminApi.ratings(),
+      adminApi.users(),
     ])
 
     const combined = []
+    if (bookRes.status   === 'fulfilled') (bookRes.value.data?.data   || bookRes.value.data   || []).forEach(i => combined.push({ ...i, _type: 'booking' }))
+    if (subRes.status    === 'fulfilled') (subRes.value.data?.data    || subRes.value.data    || []).forEach(i => combined.push({ ...i, _type: 'subscription' }))
+    if (reportRes.status === 'fulfilled') (reportRes.value.data?.data || reportRes.value.data || []).forEach(i => combined.push({ ...i, _type: 'report' }))
+    if (ratingRes.status === 'fulfilled') (ratingRes.value.data?.data || ratingRes.value.data || []).forEach(i => combined.push({ ...i, _type: 'rating' }))
+    if (userRes.status   === 'fulfilled') (userRes.value.data?.data   || userRes.value.data   || []).forEach(i => combined.push({ ...i, _type: 'registration' }))
 
-    if (bookRes.status === 'fulfilled') {
-      const items = bookRes.value.data?.data || bookRes.value.data || []
-      items.forEach(b => combined.push({ ...b, type: 'booking' }))
-    }
-    if (subRes.status === 'fulfilled') {
-      const items = subRes.value.data?.data || subRes.value.data || []
-      items.forEach(s => combined.push({ ...s, type: 'subscription' }))
-    }
-    if (reportRes.status === 'fulfilled') {
-      const items = reportRes.value.data?.data || reportRes.value.data || []
-      items.forEach(r => combined.push({ ...r, type: 'report' }))
-    }
-    if (ratingRes.status === 'fulfilled') {
-      const items = ratingRes.value.data?.data || ratingRes.value.data || []
-      items.forEach(r => combined.push({ ...r, type: 'rating' }))
-    }
-    if (userRes.status === 'fulfilled') {
-      const items = userRes.value.data?.data || userRes.value.data || []
-      items.forEach(u => combined.push({ ...u, type: 'registration' }))
-    }
-
-    // Sort by created_at desc
-    combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    rawEvents.value = combined.slice(0, 100) // show latest 100
-  } catch (_) {}
-  finally { loading.value = false }
+    combined.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+    rawEvents.value = combined.slice(0, 150)
+  } catch (e) {
+    loadError.value = e.response?.data?.message || 'Failed to load activity feed'
+  } finally { loading.value = false }
 }
 
-onMounted(fetchAll)
+onMounted(loadAll)
 </script>
 
 <style scoped>
 .timeline { position: relative; padding-left: 24px; }
 .timeline-item { position: relative; }
 .timeline-item:not(.last)::before {
-  content: '';
-  position: absolute;
+  content: ''; position: absolute;
   left: 14px; top: 32px; bottom: 0;
-  width: 2px;
-  background: rgba(0,0,0,0.07);
+  width: 2px; background: rgba(0,0,0,0.07);
 }
 .timeline-dot {
-  position: absolute;
-  left: 0; top: 12px;
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1;
+  position: absolute; left: 0; top: 12px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; z-index: 1;
 }
 .timeline-card { border: 1px solid rgba(0,0,0,0.07) !important; }
-
-.dot-blue   { background: #1565C0; }
-.dot-teal   { background: #00695C; }
-.dot-amber  { background: #E65100; }
-.dot-red    { background: #C62828; }
-.dot-green  { background: #2E7D32; }
-.dot-grey   { background: #616161; }
-
-.gap-2 { gap: 8px; }
-.gap-3 { gap: 12px; }
+.dot-blue  { background: #1565C0; }
+.dot-teal  { background: #00695C; }
+.dot-amber { background: #E65100; }
+.dot-red   { background: #C62828; }
+.dot-grey  { background: #616161; }
 </style>
