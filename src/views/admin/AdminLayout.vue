@@ -2,12 +2,11 @@
   <v-layout>
     <NavBar />
 
-    <!-- Admin Sidebar -->
     <v-navigation-drawer permanent width="260" color="surface" border="r">
 
-      <!-- Admin identity card -->
+      <!-- Admin identity -->
       <div class="admin-identity pa-5">
-        <div class="d-flex align-center gap-3">
+        <div class="d-flex align-center" style="gap:12px">
           <v-avatar size="44" color="primary">
             <span class="text-white font-weight-bold">{{ adminInitials }}</span>
           </v-avatar>
@@ -23,66 +22,45 @@
 
       <v-divider />
 
-      <!-- Nav sections -->
       <div class="pa-3 pt-2">
         <p class="nav-section-label mt-3">Overview</p>
         <v-list density="compact" nav class="pa-0">
           <v-list-item
-            v-for="item in overviewNav"
-            :key="item.label"
-            :to="item.to"
-            :prepend-icon="item.icon"
-            :title="item.label"
-            rounded="lg"
-            active-color="primary"
-            class="mb-1"
+            v-for="item in overviewNav" :key="item.label"
+            :to="item.to" :prepend-icon="item.icon" :title="item.label"
+            rounded="lg" active-color="primary" class="mb-1"
           />
         </v-list>
 
         <p class="nav-section-label mt-4">Management</p>
         <v-list density="compact" nav class="pa-0">
           <v-list-item
-            v-for="item in managementNav"
-            :key="item.label"
-            :to="item.to"
-            :prepend-icon="item.icon"
-            :title="item.label"
-            rounded="lg"
-            active-color="primary"
-            class="mb-1"
+            v-for="item in managementNav" :key="item.label"
+            :to="item.to" :prepend-icon="item.icon" :title="item.label"
+            rounded="lg" active-color="primary" class="mb-1"
           />
         </v-list>
 
         <p class="nav-section-label mt-4">Content</p>
         <v-list density="compact" nav class="pa-0">
           <v-list-item
-            v-for="item in contentNav"
-            :key="item.label"
-            :to="item.to"
-            :prepend-icon="item.icon"
-            :title="item.label"
-            rounded="lg"
-            active-color="primary"
-            class="mb-1"
+            v-for="item in contentNav" :key="item.label"
+            :to="item.to" :prepend-icon="item.icon" :title="item.label"
+            rounded="lg" active-color="primary" class="mb-1"
           />
         </v-list>
       </div>
 
-      <!-- Bottom: logout -->
       <template #append>
         <div class="pa-4">
-          <v-btn
-            block variant="tonal" color="error" rounded="lg" size="small"
-            prepend-icon="mdi-logout"
-            @click="handleLogout"
-          >
+          <v-btn block variant="tonal" color="error" rounded="lg" size="small"
+            prepend-icon="mdi-logout" @click="handleLogout">
             Sign Out
           </v-btn>
         </div>
       </template>
     </v-navigation-drawer>
 
-    <!-- Main content -->
     <v-main style="background: rgb(var(--v-theme-background))">
       <v-container style="max-width:1200px" class="py-8">
         <router-view />
@@ -107,18 +85,18 @@ const adminInitials = computed(() => {
 
 const overviewNav = [
   { label: 'Dashboard',    icon: 'mdi-view-dashboard-outline', to: { name: 'AdminDashboard' } },
-  { label: 'Activity Feed',icon: 'mdi-pulse',                  to: { name: 'AdminActivity' } },
+  { label: 'Activity Feed',icon: 'mdi-pulse',                  to: { name: 'AdminActivity'  } },
 ]
 const managementNav = [
-  { label: 'Photographers', icon: 'mdi-camera-account',              to: { name: 'AdminPhotographers' } },
-  { label: 'All Users',     icon: 'mdi-account-group-outline',       to: { name: 'AdminUsers' } },
-  { label: 'Ratings',       icon: 'mdi-star-outline',                to: { name: 'AdminRatings' } },
-  { label: 'Reports',       icon: 'mdi-flag-outline',                to: { name: 'AdminReports' } },
-  { label: 'Subscriptions', icon: 'mdi-crown-outline',               to: { name: 'AdminSubscriptions' } },
+  { label: 'Photographers', icon: 'mdi-camera-account',             to: { name: 'AdminPhotographers'  } },
+  { label: 'All Users',     icon: 'mdi-account-group-outline',      to: { name: 'AdminUsers'          } },
+  { label: 'Ratings',       icon: 'mdi-star-outline',               to: { name: 'AdminRatings'        } },
+  { label: 'Reports',       icon: 'mdi-flag-outline',               to: { name: 'AdminReports'        } },
+  { label: 'Subscriptions', icon: 'mdi-crown-outline',              to: { name: 'AdminSubscriptions'  } },
 ]
 const contentNav = [
-  { label: 'Categories', icon: 'mdi-tag-multiple-outline',        to: { name: 'AdminCategories' } },
-  { label: 'Locations',  icon: 'mdi-map-marker-multiple-outline', to: { name: 'AdminLocations' } },
+  { label: 'Categories', icon: 'mdi-tag-multiple-outline',       to: { name: 'AdminCategories' } },
+  { label: 'Locations',  icon: 'mdi-map-marker-multiple-outline',to: { name: 'AdminLocations'  } },
 ]
 
 async function handleLogout() {
@@ -135,5 +113,4 @@ async function handleLogout() {
   color: rgba(var(--v-theme-on-surface), 0.35);
   padding: 0 8px; margin-bottom: 6px;
 }
-.gap-3 { gap: 12px; }
 </style>

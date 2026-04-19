@@ -37,7 +37,7 @@
                 Current Plan
               </p>
               <p class="text-white text-h6 font-weight-bold text-capitalize mt-1">
-                {{ current.plan }} Plan
+                {{ current._from_profile ? 'Active' : current.plan }} Plan
               </p>
             </div>
           </div>
@@ -503,13 +503,47 @@ async function loadData() {
       const { data } = await subscriptionsApi.plans()
       plans.value = data.plans || {}
     } catch (e) {
-      plansError.value = e.response?.data?.message || 'Failed to load subscription plans. Please check your connection.'
+      plansError.value = e.response?.data?.message || 'Failed to load subscription plans.'
     }
 
-    // Load current subscription (returns 200 with null if none)
+    // Load current subscription
     try {
       const { data } = await subscriptionsApi.current()
       current.value = data.subscription || null
+
+      // FALLBACK: if the API returned null but the user's profile shows active,
+      // the subscriptions table is out of sync with photographer_profiles.
+      // Show active state using the profile data so the UI is correct.
+      if (!current.value) {
+        const { data: userData } = await import('@/api/axios').then(m => m.default.get('/user'))
+        const profile = (userData?.user ?? userData)?.photographer_profile
+        if (
+          profile?.subscription_status === 'active' &&
+          profile?.subscription_end_date &&
+          new Date(profile.subscription_end_date) > new Date()
+        ) {
+          // Build a synthetic subscription object from the profile
+          current.value = {
+            id:         null,
+            plan:       'active',
+            amount:     0,
+            status:     'active',
+            ends_at:    profile.subscription_end_date,
+            starts_at:  null,
+            created_at: null,
+            // Signal to the UI that this came from the profile fallback
+            _from_profile: true,
+          }
+          // Calculate days remaining
+          const msLeft = new Date(profile.subscription_end_date) - new Date()
+          current.value.days_remaining = Math.max(0, Math.floor(msLeft / 86400000))
+        }
+      } else {
+        // Attach days_remaining from the response if present
+        if (data.days_remaining !== undefined) {
+          current.value.days_remaining = data.days_remaining
+        }
+      }
     } catch (_) {
       current.value = null
     }
