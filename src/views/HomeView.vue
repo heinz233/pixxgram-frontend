@@ -209,7 +209,7 @@ const steps=[
   {step:3,icon:'mdi-cellphone-check',title:'Pay with M-Pesa',desc:'Secure, instant payment directly from your Safaricom line.'},
 ]
 const testimonials=[
-  {name:'Amina Odhiambo',role:'Bride, Nairobi',quote:'Found our wedding photographer within an hour. The whole process was so smooth and the photos were stunning.'},
+  {name:'Charles Kariuki',role:'Bride, Nairobi',quote:'Found our wedding photographer within an hour. The whole process was so smooth and the photos were stunning.'},
   {name:'Brian Kamau',role:'Marketing Manager',quote:'We use Pixxgram for all our corporate events. Reliable photographers, great quality every time.'},
   {name:'Cynthia Weru',role:'Photographer, Kisumu',quote:"Joined 6 months ago and I've tripled my bookings. The platform handles everything — I just focus on shooting."},
 ]

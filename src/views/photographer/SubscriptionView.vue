@@ -447,7 +447,7 @@ const expiryPercent = computed(() => {
 })
 
 const savings = computed(() => {
-  const monthly = plans.value.monthly?.amount || 1500
+  const monthly = plans.value.monthly?.amount || 150
   return {
     quarterly: (monthly * 3) - (plans.value.quarterly?.amount || 3999),
     annual:    (monthly * 12) - (plans.value.annual?.amount || 14000),
