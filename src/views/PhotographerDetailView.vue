@@ -117,6 +117,15 @@
               <v-icon start>mdi-star-outline</v-icon> Leave a Review
             </v-btn>
 
+            <!-- Report -->
+            <v-btn v-if="authStore.isClient"
+              block variant="text" color="error" rounded="lg" size="small"
+              class="mt-1"
+              @click="reportDialog = true">
+              <v-icon start size="14">mdi-flag-outline</v-icon>
+              Report Photographer
+            </v-btn>
+
           </v-card>
         </v-col>
 
@@ -267,6 +276,14 @@
       @rated="onRated"
     />
 
+    <!-- REPORT DIALOG -->
+    <ReportDialog
+      v-if="photographer && authStore.isClient"
+      v-model="reportDialog"
+      :photographer-id="photographer.id"
+      :photographer-name="photographer.name"
+    />
+
   </div>
 </template>
 
@@ -276,6 +293,7 @@ import { useRoute } from 'vue-router'
 import NavBar        from '@/components/shared/NavBar.vue'
 import BookingDialog from '@/components/client/BookingDialog.vue'
 import RatingDialog  from '@/components/client/RatingDialog.vue'
+import ReportDialog  from '@/components/client/ReportDialog.vue'
 import { photographersApi } from '@/api/photographers'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore  } from '@/stores/app'
@@ -291,6 +309,7 @@ const photographer = ref(null)
 const photoError   = ref(false)
 const bookingDialog= ref(false)
 const ratingDialog = ref(false)
+const reportDialog = ref(false)
 const lightboxOpen = ref(false)
 const lightboxItem = ref(null)
 const activeCategory = ref('')
