@@ -1,152 +1,438 @@
 <template>
   <div>
-    <h2 class="text-h6 font-weight-bold mb-1">Earnings & Stats</h2>
-    <p class="text-medium-emphasis mb-6">Track your performance on Pixxgram</p>
 
-    <v-row v-if="loading">
-      <v-col v-for="i in 4" :key="i" cols="6" md="3">
-        <v-skeleton-loader type="card" rounded="xl" />
-      </v-col>
-    </v-row>
-
-    <v-row v-else>
-      <v-col v-for="card in statCards" :key="card.label" cols="6" md="3">
-        <v-card rounded="xl" class="stat-card pa-5">
-          <div class="stat-icon mb-3" :class="card.bg">
-            <v-icon :color="card.color" size="20">{{ card.icon }}</v-icon>
-          </div>
-          <div class="text-h5 font-weight-bold">{{ card.value }}</div>
-          <div class="text-caption text-medium-emphasis mt-1">{{ card.label }}</div>
-          <div v-if="card.sub" class="text-caption mt-1" :class="card.subColor">{{ card.sub }}</div>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Subscription status banner -->
-    <v-card
-      v-if="stats && stats.subscription_status !== 'active'"
-      rounded="xl" color="warning" variant="tonal" class="pa-5 mt-4 d-flex align-center gap-3"
-    >
-      <v-icon color="warning" size="24">mdi-alert-circle-outline</v-icon>
+    <!-- Header -->
+    <div class="d-flex align-center justify-space-between mb-7">
       <div>
-        <p class="text-body-2 font-weight-bold">Your subscription is not active</p>
-        <p class="text-caption">Subscribe to appear in search results and receive bookings.</p>
+        <h2 class="text-h6 font-weight-bold">Earnings & Stats</h2>
+        <p class="text-medium-emphasis text-body-2 mt-1">
+          Track your performance on Pixxgram
+        </p>
       </div>
-      <v-spacer />
-      <v-btn color="secondary" size="small" :to="{ name: 'Subscription' }">Subscribe Now</v-btn>
-    </v-card>
+      <v-btn variant="text" size="small" color="primary"
+        prepend-icon="mdi-refresh" :loading="loading" @click="loadData">
+        Refresh
+      </v-btn>
+    </div>
 
-    <v-row class="mt-4">
-      <!-- Booking history -->
-      <v-col cols="12" md="7">
-        <v-card rounded="xl" class="pa-6 stat-card">
-          <h3 class="text-subtitle-2 font-weight-bold mb-4">Recent Bookings</h3>
-          <div v-if="loadingBookings" class="text-center py-6">
-            <v-progress-circular indeterminate size="24" color="primary" />
-          </div>
-          <div v-else-if="!recentBookings.length" class="text-center py-6 text-medium-emphasis">
-            <v-icon size="40">mdi-calendar-blank-outline</v-icon>
-            <p class="text-caption mt-2">No bookings yet.</p>
-          </div>
-          <div v-else>
-            <div
-              v-for="b in recentBookings"
-              :key="b.id"
-              class="booking-row d-flex align-center justify-space-between py-3"
-            >
-              <div class="d-flex align-center gap-3">
-                <v-avatar size="32" color="primary">
-                  <span class="text-white text-caption font-weight-bold">{{ b.client?.name?.charAt(0) }}</span>
+    <!-- Loading -->
+    <div v-if="loading" class="text-center py-16">
+      <v-progress-circular indeterminate color="primary" size="48" />
+      <p class="mt-4 text-medium-emphasis">Loading your earnings...</p>
+    </div>
+
+    <template v-else>
+
+      <!-- ── EARNINGS SUMMARY CARDS ─────────────────────────────── -->
+      <v-row class="mb-4">
+
+        <!-- Total Earned -->
+        <v-col cols="12" md="4">
+          <v-card rounded="xl" class="pa-6 earnings-hero" color="primary">
+            <p class="text-white text-caption text-uppercase font-weight-bold mb-2" style="opacity:.7">
+              Total Earned
+            </p>
+            <p class="text-white text-h4 font-weight-bold">
+              KSh {{ totalEarned.toLocaleString() }}
+            </p>
+            <p class="text-caption mt-2" style="color:rgba(255,255,255,0.55)">
+              From {{ paidBookings.length }} paid booking{{ paidBookings.length !== 1 ? 's' : '' }}
+            </p>
+          </v-card>
+        </v-col>
+
+        <!-- This Month -->
+        <v-col cols="12" md="4">
+          <v-card rounded="xl" class="pa-6 earnings-hero" color="secondary">
+            <p class="text-white text-caption text-uppercase font-weight-bold mb-2" style="opacity:.7">
+              This Month
+            </p>
+            <p class="text-white text-h4 font-weight-bold">
+              KSh {{ thisMonthEarned.toLocaleString() }}
+            </p>
+            <p class="text-caption mt-2" style="color:rgba(255,255,255,0.55)">
+              {{ currentMonthName }}
+            </p>
+          </v-card>
+        </v-col>
+
+        <!-- Pending Payment -->
+        <v-col cols="12" md="4">
+          <v-card rounded="xl" class="pa-6 stat-card">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="stat-icon bg-amber">
+                <v-icon size="18" color="orange">mdi-clock-outline</v-icon>
+              </div>
+            </div>
+            <p class="text-h5 font-weight-bold">
+              KSh {{ pendingAmount.toLocaleString() }}
+            </p>
+            <p class="text-caption text-medium-emphasis mt-1">
+              Awaiting payment ({{ confirmedUnpaid.length }} booking{{ confirmedUnpaid.length !== 1 ? 's' : '' }})
+            </p>
+          </v-card>
+        </v-col>
+      </v-row>
+
+      <!-- ── BOOKING STATS ROW ───────────────────────────────────── -->
+      <v-row class="mb-6">
+        <v-col cols="6" md="3">
+          <v-card rounded="xl" class="pa-5 stat-card text-center">
+            <div class="stat-icon bg-blue mx-auto mb-2">
+              <v-icon size="18" color="blue">mdi-calendar-check-outline</v-icon>
+            </div>
+            <p class="text-h5 font-weight-bold">{{ totalBookings }}</p>
+            <p class="text-caption text-medium-emphasis">Total Bookings</p>
+          </v-card>
+        </v-col>
+        <v-col cols="6" md="3">
+          <v-card rounded="xl" class="pa-5 stat-card text-center">
+            <div class="stat-icon bg-green mx-auto mb-2">
+              <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
+            </div>
+            <p class="text-h5 font-weight-bold">{{ completedBookings }}</p>
+            <p class="text-caption text-medium-emphasis">Completed</p>
+          </v-card>
+        </v-col>
+        <v-col cols="6" md="3">
+          <v-card rounded="xl" class="pa-5 stat-card text-center">
+            <div class="stat-icon bg-purple mx-auto mb-2">
+              <v-icon size="18" color="purple">mdi-star-outline</v-icon>
+            </div>
+            <p class="text-h5 font-weight-bold">{{ avgRating }}</p>
+            <p class="text-caption text-medium-emphasis">Avg Rating</p>
+          </v-card>
+        </v-col>
+        <v-col cols="6" md="3">
+          <v-card rounded="xl" class="pa-5 stat-card text-center">
+            <div class="stat-icon bg-teal mx-auto mb-2">
+              <v-icon size="18" color="teal">mdi-image-multiple-outline</v-icon>
+            </div>
+            <p class="text-h5 font-weight-bold">{{ portfolioCount }}</p>
+            <p class="text-caption text-medium-emphasis">Portfolio Photos</p>
+          </v-card>
+        </v-col>
+      </v-row>
+
+      <!-- ── MAIN CONTENT: Transactions + Recent Bookings ──────── -->
+      <v-row>
+
+        <!-- Recent paid transactions -->
+        <v-col cols="12" md="7">
+          <v-card rounded="xl" class="pa-6 content-card">
+            <div class="d-flex align-center justify-space-between mb-5">
+              <h3 class="text-subtitle-2 font-weight-bold">Payment History</h3>
+              <v-chip color="success" variant="tonal" size="small">
+                {{ paidBookings.length }} payments
+              </v-chip>
+            </div>
+
+            <!-- Empty -->
+            <div v-if="!paidBookings.length" class="text-center py-10">
+              <v-icon size="52" color="medium-emphasis">mdi-cash-remove</v-icon>
+              <p class="mt-3 text-body-2 font-weight-semibold">No payments yet</p>
+              <p class="text-caption text-medium-emphasis mt-1">
+                Payments will appear here once clients pay for confirmed bookings.
+              </p>
+            </div>
+
+            <!-- Transaction list -->
+            <div v-else>
+              <div
+                v-for="booking in paidBookings.slice(0, 8)"
+                :key="booking.id"
+                class="transaction-row d-flex align-center py-3"
+                style="gap:14px"
+              >
+                <!-- Client avatar -->
+                <v-avatar size="38" color="primary">
+                  <v-img v-if="booking.client?.user_image"
+                    :src="buildUrl(booking.client.user_image)" />
+                  <span v-else class="text-white text-caption font-weight-bold">
+                    {{ booking.client?.name?.charAt(0)?.toUpperCase() }}
+                  </span>
                 </v-avatar>
-                <div>
-                  <p class="text-body-2 font-weight-semibold">{{ b.client?.name }}</p>
-                  <p class="text-caption text-medium-emphasis">{{ fmtDate(b.booking_date) }}</p>
+
+                <div class="flex-grow-1 min-width-0">
+                  <p class="text-body-2 font-weight-semibold">
+                    {{ booking.client?.name || 'Client' }}
+                  </p>
+                  <p class="text-caption text-medium-emphasis">
+                    {{ formatDate(booking.booking_date) }}
+                    <span v-if="booking.mpesa_receipt">
+                      · {{ booking.mpesa_receipt }}
+                    </span>
+                  </p>
+                </div>
+
+                <div class="text-right flex-shrink-0">
+                  <p class="text-body-2 font-weight-bold text-success">
+                    + KSh {{ Number(booking.amount || 0).toLocaleString() }}
+                  </p>
+                  <p class="text-caption text-medium-emphasis">
+                    {{ timeAgo(booking.paid_at || booking.updated_at) }}
+                  </p>
                 </div>
               </div>
-              <v-chip :color="statusColor(b.status)" size="x-small" label>{{ b.status }}</v-chip>
-            </div>
-          </div>
-          <v-btn variant="text" size="small" color="primary" class="mt-2" :to="{ name: 'PhotographerBookings' }">
-            View all bookings <v-icon end size="14">mdi-arrow-right</v-icon>
-          </v-btn>
-        </v-card>
-      </v-col>
 
-      <!-- Portfolio performance -->
-      <v-col cols="12" md="5">
-        <v-card rounded="xl" class="pa-6 stat-card">
-          <h3 class="text-subtitle-2 font-weight-bold mb-4">Portfolio Performance</h3>
-          <div v-if="!portfolioStats.length" class="text-center py-6 text-medium-emphasis">
-            <v-icon size="40">mdi-image-off-outline</v-icon>
-            <p class="text-caption mt-2">Upload photos to see stats.</p>
-          </div>
-          <div v-else>
-            <div v-for="item in portfolioStats.slice(0, 5)" :key="item.id" class="portfolio-stat-row py-2">
-              <div class="d-flex justify-space-between mb-1">
-                <span class="text-caption font-weight-semibold text-truncate" style="max-width:150px">{{ item.title }}</span>
-                <span class="text-caption text-medium-emphasis">{{ item.views }} views</span>
-              </div>
-              <v-progress-linear
-                :model-value="maxViews > 0 ? (item.views / maxViews) * 100 : 0"
-                color="secondary" rounded height="4" bg-color="rgba(0,0,0,0.06)"
-              />
+              <!-- View all -->
+              <v-btn
+                v-if="paidBookings.length > 8"
+                variant="text" color="primary" block class="mt-3"
+                :to="{ name: 'PhotographerBookings' }"
+              >
+                View all {{ paidBookings.length }} payments
+                <v-icon end size="14">mdi-arrow-right</v-icon>
+              </v-btn>
             </div>
-          </div>
-          <v-btn variant="text" size="small" color="primary" class="mt-2" :to="{ name: 'Portfolio' }">
-            Manage portfolio <v-icon end size="14">mdi-arrow-right</v-icon>
-          </v-btn>
-        </v-card>
-      </v-col>
-    </v-row>
+          </v-card>
+        </v-col>
+
+        <!-- Right column -->
+        <v-col cols="12" md="5">
+
+          <!-- Pending payments (confirmed but not paid) -->
+          <v-card rounded="xl" class="pa-6 content-card mb-4">
+            <div class="d-flex align-center justify-space-between mb-4">
+              <h3 class="text-subtitle-2 font-weight-bold">Awaiting Payment</h3>
+              <v-chip v-if="confirmedUnpaid.length"
+                color="warning" variant="tonal" size="small">
+                {{ confirmedUnpaid.length }}
+              </v-chip>
+            </div>
+
+            <div v-if="!confirmedUnpaid.length" class="text-center py-6">
+              <v-icon size="40" color="success">mdi-check-circle-outline</v-icon>
+              <p class="text-caption text-medium-emphasis mt-2">
+                No pending payments
+              </p>
+            </div>
+
+            <div v-else>
+              <div
+                v-for="booking in confirmedUnpaid"
+                :key="booking.id"
+                class="pending-row d-flex align-center py-3"
+                style="gap:12px"
+              >
+                <v-avatar size="34" color="warning" variant="tonal">
+                  <span class="text-warning text-caption font-weight-bold">
+                    {{ booking.client?.name?.charAt(0) }}
+                  </span>
+                </v-avatar>
+                <div class="flex-grow-1 min-width-0">
+                  <p class="text-body-2 font-weight-semibold text-truncate">
+                    {{ booking.client?.name }}
+                  </p>
+                  <p class="text-caption text-medium-emphasis">
+                    {{ formatDate(booking.booking_date) }}
+                  </p>
+                </div>
+                <v-chip color="warning" size="x-small" label>unpaid</v-chip>
+              </div>
+            </div>
+          </v-card>
+
+          <!-- Portfolio performance -->
+          <v-card rounded="xl" class="pa-6 content-card">
+            <div class="d-flex align-center justify-space-between mb-4">
+              <h3 class="text-subtitle-2 font-weight-bold">Portfolio Performance</h3>
+              <v-btn variant="text" size="x-small" color="primary"
+                :to="{ name: 'Portfolio' }">
+                Manage <v-icon end size="12">mdi-arrow-right</v-icon>
+              </v-btn>
+            </div>
+
+            <div v-if="!dashStats?.portfolio_analysis?.length" class="text-center py-6">
+              <v-icon size="40" color="medium-emphasis">mdi-image-off-outline</v-icon>
+              <p class="text-caption text-medium-emphasis mt-2">
+                Upload photos to see stats.
+              </p>
+              <v-btn size="small" color="primary" variant="tonal" class="mt-3" rounded="lg"
+                :to="{ name: 'Portfolio' }">
+                Upload Photos
+              </v-btn>
+            </div>
+
+            <div v-else>
+              <div
+                v-for="item in dashStats.portfolio_analysis.slice(0, 5)"
+                :key="item.id"
+                class="portfolio-stat-row d-flex align-center py-2"
+                style="gap:10px"
+              >
+                <v-img
+                  :src="item.thumbnail_url || item.image_url"
+                  width="40" height="40" cover rounded="lg"
+                  class="flex-shrink-0"
+                />
+                <div class="flex-grow-1 min-width-0">
+                  <p class="text-caption font-weight-semibold text-truncate">
+                    {{ item.title }}
+                  </p>
+                  <p class="text-caption text-medium-emphasis">
+                    {{ item.category }}
+                  </p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="text-caption font-weight-bold">
+                    <v-icon size="11" color="medium-emphasis">mdi-eye</v-icon>
+                    {{ item.views || 0 }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </v-card>
+
+        </v-col>
+      </v-row>
+
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { photographersApi } from '@/api/photographers'
 import { bookingsApi } from '@/api/bookings'
+import { photographersApi } from '@/api/photographers'
+import { useAuthStore } from '@/stores/auth'
 
-const loading = ref(true), loadingBookings = ref(true)
-const stats = ref(null), recentBookings = ref([])
+const authStore = useAuthStore()
 
-const statCards = computed(() => {
-  if (!stats.value) return []
-  return [
-    { label: 'Profile Completion', value: stats.value.profile_completion + '%', icon: 'mdi-account-check-outline', color: 'blue',    bg: 'icon-blue',   sub: stats.value.profile_completion < 100 ? 'Complete your profile' : 'Fully complete!', subColor: stats.value.profile_completion < 100 ? 'text-warning' : 'text-success' },
-    { label: 'Average Rating',     value: stats.value.average_rating?.toFixed(1) || '—', icon: 'mdi-star',         color: 'amber',   bg: 'icon-amber',  sub: `${stats.value.total_ratings} reviews` },
-    { label: 'Upcoming Bookings',  value: stats.value.upcoming_bookings ?? 0,  icon: 'mdi-calendar-check',         color: 'green',   bg: 'icon-green'  },
-    { label: 'Portfolio Views',    value: stats.value.total_portfolio_views ?? 0, icon: 'mdi-eye-outline',          color: 'purple',  bg: 'icon-purple' },
-  ]
+// ── state ──────────────────────────────────────────────────────────
+const loading    = ref(true)
+const bookings   = ref([])
+const dashStats  = ref(null)
+
+// ── computed ───────────────────────────────────────────────────────
+const paidBookings = computed(() =>
+  bookings.value.filter(b => b.payment_status === 'paid')
+)
+
+const confirmedUnpaid = computed(() =>
+  bookings.value.filter(b =>
+    b.status === 'confirmed' && b.payment_status !== 'paid'
+  )
+)
+
+const totalBookings    = computed(() => bookings.value.length)
+const completedBookings= computed(() => bookings.value.filter(b => b.status === 'completed').length)
+
+const totalEarned = computed(() =>
+  paidBookings.value.reduce((sum, b) => sum + Number(b.amount || 0), 0)
+)
+
+const pendingAmount = computed(() =>
+  confirmedUnpaid.value.reduce((sum, b) =>
+    sum + Number(b.photographer?.photographerProfile?.hourly_rate || 0), 0
+  )
+)
+
+const thisMonthEarned = computed(() => {
+  const now = new Date()
+  return paidBookings.value
+    .filter(b => {
+      const d = new Date(b.paid_at || b.updated_at)
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    })
+    .reduce((sum, b) => sum + Number(b.amount || 0), 0)
 })
 
-const portfolioStats = computed(() => stats.value?.portfolio_analysis || [])
-const maxViews = computed(() => Math.max(...portfolioStats.value.map(p => p.views || 0), 1))
+const currentMonthName = computed(() =>
+  new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
+)
 
-const statusColor = s => ({ pending:'warning', confirmed:'info', completed:'success', cancelled:'error' }[s])
-function fmtDate(d) { return new Date(d).toLocaleDateString('en-KE', { dateStyle: 'medium' }) }
+const avgRating = computed(() => {
+  const r = dashStats.value?.average_rating
+  return r ? Number(r).toFixed(1) : '—'
+})
 
-onMounted(async () => {
+const portfolioCount = computed(() =>
+  dashStats.value?.portfolio_analysis?.length || 0
+)
+
+// ── helpers ────────────────────────────────────────────────────────
+const BACKEND = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api')
+  .replace(/\/api\/?$/, '').replace(/\/$/, '')
+
+function buildUrl(path) {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${BACKEND}/storage/${path.replace(/^\/+/, '')}`
+}
+
+function formatDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-KE', { dateStyle: 'medium' }) : '—'
+}
+
+function timeAgo(d) {
+  if (!d) return ''
+  const diff = Date.now() - new Date(d).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 30)  return `${days}d ago`
+  return new Date(d).toLocaleDateString('en-KE', { dateStyle: 'short' })
+}
+
+// ── load ───────────────────────────────────────────────────────────
+async function loadData() {
+  loading.value = true
   try {
-    const [dashRes, bookRes] = await Promise.allSettled([
-      photographersApi.dashboard(),
+    const [bookingsRes, dashRes] = await Promise.allSettled([
       bookingsApi.list(),
+      photographersApi.dashboard(),
     ])
-    if (dashRes.status === 'fulfilled')  stats.value = dashRes.value.data
-    if (bookRes.status === 'fulfilled')  recentBookings.value = (bookRes.value.data || []).slice(0, 5)
+
+    if (bookingsRes.status === 'fulfilled') {
+      const data = bookingsRes.value.data
+      bookings.value = Array.isArray(data) ? data : (data?.data || [])
+    }
+
+    if (dashRes.status === 'fulfilled') {
+      dashStats.value = dashRes.value.data
+    }
+
   } catch (_) {}
-  finally { loading.value = false; loadingBookings.value = false }
-})
+  finally { loading.value = false }
+}
+
+onMounted(loadData)
 </script>
 
 <style scoped>
-.stat-card { border: 1px solid rgba(0,0,0,0.07) !important; }
-.stat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.icon-blue   { background: rgba(33,150,243,0.1); }
-.icon-amber  { background: rgba(255,193,7,0.1); }
-.icon-green  { background: rgba(76,175,80,0.1); }
-.icon-purple { background: rgba(156,39,176,0.1); }
-.booking-row { border-bottom: 1px solid rgba(0,0,0,0.05); }
-.booking-row:last-child { border-bottom: none; }
-.portfolio-stat-row { border-bottom: 1px solid rgba(0,0,0,0.04); }
-.gap-3 { gap: 12px; }
+/* Earnings hero cards */
+.earnings-hero { border: none !important; }
+
+/* Stat cards */
+.stat-card  { border: 1px solid rgba(0,0,0,0.07) !important; }
+.content-card { border: 1px solid rgba(0,0,0,0.07) !important; }
+
+.stat-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bg-blue   { background: rgba(33,150,243,0.1); }
+.bg-green  { background: rgba(76,175,80,0.1); }
+.bg-purple { background: rgba(156,39,176,0.1); }
+.bg-teal   { background: rgba(0,150,136,0.1); }
+.bg-amber  { background: rgba(255,152,0,0.1); }
+
+/* Transaction list */
+.transaction-row {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.transaction-row:last-child { border-bottom: none; }
+
+/* Pending rows */
+.pending-row {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.pending-row:last-child { border-bottom: none; }
+
+/* Portfolio stats */
+.portfolio-stat-row {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.portfolio-stat-row:last-child { border-bottom: none; }
 </style>
