@@ -28,7 +28,7 @@
             Active Subscriptions
           </p>
           <p class="text-white text-h5 font-weight-bold">
-            {{ countByStatus('active') }}
+            {{ activeCount }}
           </p>
         </v-card>
       </v-col>
@@ -130,8 +130,10 @@
             {{ sub.mpesa_receipt }}
           </p>
         </div>
-        <v-chip :color="statusColor(sub.status)" size="small" label>
-          {{ sub.status }}
+        <v-chip :color="displayStatusColor(sub)" size="small" label>
+          {{ displayStatus(sub) }}
+          <span v-if="sub.is_effectively_active && sub.status !== 'active'"
+            class="ml-1" style="font-size:0.65rem;opacity:0.8">(profile)</span>
         </v-chip>
       </div>
     </v-card>
@@ -145,22 +147,34 @@ import { adminApi } from '@/api/admin'
 const loading      = ref(true)
 const loadError    = ref('')
 const subs         = ref([])
+const summary      = ref({ total_revenue: 0, active_subscriptions: 0, month_revenue: 0 })
 const search       = ref('')
 const statusFilter = ref('')
 const planFilter   = ref('')
 
-const countByStatus = s => subs.value.filter(sub => sub.status === s).length
-
+// Use summary from API (most accurate) with local fallback
 const totalRevenue = computed(() =>
-  subs.value.filter(s => s.status === 'active').reduce((a, s) => a + Number(s.amount || 0), 0)
+  summary.value.total_revenue ||
+  subs.value
+    .filter(s => ['active','cancelled','expired'].includes(s.status) && Number(s.amount) > 0)
+    .reduce((a, s) => a + Number(s.amount || 0), 0)
+)
+
+const activeCount = computed(() =>
+  summary.value.active_subscriptions ||
+  subs.value.filter(s => s.is_effectively_active || s.status === 'active').length
 )
 
 const monthRevenue = computed(() => {
+  if (summary.value.month_revenue) return summary.value.month_revenue
   const now = new Date()
   return subs.value
     .filter(s => {
       const d = new Date(s.created_at)
-      return s.status === 'active' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      return ['active','cancelled','expired'].includes(s.status) &&
+        Number(s.amount) > 0 &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
     })
     .reduce((a, s) => a + Number(s.amount || 0), 0)
 })
@@ -182,6 +196,15 @@ const filtered = computed(() => {
 const STATUS_COLORS = { active:'success', pending:'warning', cancelled:'error', expired:'default', failed:'error' }
 const statusColor = s => STATUS_COLORS[s] || 'default'
 
+// Show green chip if profile is actually active even if row status differs
+function displayStatus(sub) {
+  if (sub.is_effectively_active) return 'active'
+  return sub.status
+}
+function displayStatusColor(sub) {
+  return STATUS_COLORS[displayStatus(sub)] || 'default'
+}
+
 function formatDate(d) {
   return d ? new Date(d).toLocaleDateString('en-KE', { dateStyle: 'medium' }) : '—'
 }
@@ -191,7 +214,15 @@ async function loadSubs() {
   loadError.value = ''
   try {
     const { data } = await adminApi.subscriptions()
-    subs.value = data?.data || data || []
+
+    // Handle both { data: {...paginated...}, summary: {...} } and plain array
+    if (data?.summary) {
+      summary.value = data.summary
+      const paginated = data.data
+      subs.value = paginated?.data || paginated || []
+    } else {
+      subs.value = data?.data || data || []
+    }
   } catch (e) {
     const s = e.response?.status
     if (s === 403) loadError.value = 'Access denied. Make sure you are logged in as an admin.'
