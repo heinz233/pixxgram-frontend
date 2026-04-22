@@ -127,5 +127,5 @@ async function handleLogout(){await authStore.logout();router.push({name:'Home'}
 <style scoped>
 .brand-icon{width:32px;height:32px;background:rgb(var(--v-theme-primary));border-radius:10px;display:flex;align-items:center;justify-content:center}
 .brand-text{font-weight:800;font-size:1.2rem;letter-spacing:-.5px;color:rgb(var(--v-theme-primary))}
-.gap-1{gap:4px}
+.gap-1{gap:2px}
 </style>

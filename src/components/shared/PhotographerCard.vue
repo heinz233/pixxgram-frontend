@@ -95,6 +95,8 @@ const BACKEND = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api')
 function buildUrl(path) {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path
+  if (path.startsWith('/storage/')) return `${BACKEND}${path}`
+  if (path.startsWith('storage/'))  return `${BACKEND}/${path}`
   return `${BACKEND}/storage/${path.replace(/^\/+/, '')}`
 }
 
@@ -148,6 +150,7 @@ const rateDisplay = computed(() => {
 .bio-snippet {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;

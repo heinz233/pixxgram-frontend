@@ -338,6 +338,8 @@ const BACKEND = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api')
 function buildUrl(path) {
   if (!path) return ''
   if (path.startsWith('http')) return path
+  if (path.startsWith('/storage/')) return `${BACKEND}${path}`
+  if (path.startsWith('storage/'))  return `${BACKEND}/${path}`
   return `${BACKEND}/storage/${path.replace(/^\/+/, '')}`
 }
 
