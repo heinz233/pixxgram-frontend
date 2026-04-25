@@ -14,6 +14,10 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',        // ← allow external connections
+    port: 5173,
+    allowedHosts: 'all',    // ← allow ngrok URLs
+    cors: true,
     port: 5173,
     proxy: {
       '/api': {
