@@ -1,11 +1,8 @@
 <template>
-  <v-app :theme="theme">
-    <router-view v-slot="{ Component }">
-      <transition name="page" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+  <v-app>
+    <router-view />
 
+    <!-- Global snackbar notifications -->
     <v-snackbar
       v-model="appStore.snackbar.show"
       :color="appStore.snackbar.color"
@@ -15,24 +12,28 @@
     >
       {{ appStore.snackbar.message }}
       <template #actions>
-        <v-btn variant="text" @click="appStore.snackbar.show = false">Dismiss</v-btn>
+        <v-btn variant="text" @click="appStore.snackbar.show = false">Close</v-btn>
       </template>
     </v-snackbar>
   </v-app>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted } from 'vue'
+import { useTheme } from 'vuetify'
 import { useAppStore } from '@/stores/app'
 import { useUnreadMessages } from '@/composables/useUnreadMessages'
 
 const appStore = useAppStore()
-const theme    = ref('pixxgramLight')
+const theme    = useTheme()
+
+// Restore saved theme preference on app start
+onMounted(() => {
+  const saved = localStorage.getItem('pixxgram_theme')
+  if (saved === 'pixxgramLight' || saved === 'pixxgramDark') {
+    theme.global.name.value = saved
+  }
+})
 
 useUnreadMessages()
 </script>
-
-<style>
-.page-enter-active, .page-leave-active { transition: opacity 0.15s ease; }
-.page-enter-from, .page-leave-to { opacity: 0; }
-</style>

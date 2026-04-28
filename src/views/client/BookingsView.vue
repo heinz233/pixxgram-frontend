@@ -446,33 +446,63 @@ async function submitPayment() {
 
 function startPolling(bookingId) {
   let attempts = 0
+  pollMessage.value = 'Waiting for M-Pesa confirmation...'
+
   pollInterval = setInterval(async () => {
     attempts++
     try {
+      // paymentStatus now queries Safaricom directly if still pending
       const { data } = await bookingsApi.paymentStatus(bookingId)
 
       if (data.payment_status === 'paid') {
         stopPolling()
         pollingDialog.value = false
+
+        // Update the booking in the list
         const b = bookings.value.find(x => x.id === bookingId)
         if (b) {
-          b.payment_status = 'paid'
-          b.mpesa_receipt  = data.mpesa_receipt
-          b.amount         = data.amount
+          b.payment_status       = 'paid'
+          b.mpesa_receipt        = data.mpesa_receipt
+          b.amount               = data.amount
+          b.platform_commission  = data.platform_commission
+          b.photographer_payout  = data.photographer_payout
         }
+
         appStore.notify('🎉 Payment confirmed! Your booking is secured.', 'success')
+        // Reload to get fresh data
+        await loadBookings()
         return
       }
 
-      pollMessage.value = `Checking... (${attempts * 5}s elapsed)`
+      if (data.payment_status === 'unpaid') {
+        // Safaricom confirmed it was cancelled/failed
+        stopPolling()
+        pollingDialog.value = false
+        pollStatus.value    = 'failed'
+        appStore.notify('Payment was cancelled or failed. Please try again.', 'error')
+        return
+      }
 
-    } catch (_) {}
+      // Still pending — update message with elapsed time
+      const secs = attempts * 5
+      if (secs < 30) {
+        pollMessage.value = 'Waiting for your M-Pesa PIN...'
+      } else {
+        pollMessage.value = `Still checking... (${secs}s elapsed)`
+      }
 
-    if (attempts >= 24) {
+    } catch (_) {
+      pollMessage.value = 'Checking payment status...'
+    }
+
+    // Timeout after 3 minutes (36 × 5s)
+    if (attempts >= 36) {
       stopPolling()
       pollingDialog.value = false
-      pollStatus.value = 'failed'
-      appStore.notify('Payment timed out. If you paid, contact support.', 'warning')
+      appStore.notify(
+        'Payment check timed out. If you paid, your booking will update automatically shortly.',
+        'warning'
+      )
     }
   }, 5000)
 }
