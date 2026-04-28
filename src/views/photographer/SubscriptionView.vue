@@ -595,13 +595,15 @@ async function subscribe() {
 }
 
 function startPolling(checkoutId) {
-  let attempts  = 0
+  let attempts      = 0
   pollStatus.value  = 'pending'
   pollMessage.value = 'Waiting for your M-Pesa PIN...'
 
   pollInterval = setInterval(async () => {
     attempts++
     try {
+      // The backend now queries Safaricom directly if status is still pending
+      // So this will detect payment even when the callback URL is unreachable
       const { data } = await subscriptionsApi.mpesaStatus(checkoutId)
 
       if (data.status === 'active') {
@@ -616,19 +618,32 @@ function startPolling(checkoutId) {
       if (data.status === 'failed') {
         clearInterval(pollInterval)
         pollStatus.value  = 'failed'
-        pollMessage.value = 'Payment failed or was cancelled.'
+        pollMessage.value = 'Payment was cancelled or failed. Please try again.'
         return
       }
 
-      pollMessage.value = `Checking... (${attempts * 5}s elapsed)`
+      // Still pending — update message
+      const secs = attempts * 5
+      if (secs < 30) {
+        pollMessage.value = 'Waiting for your M-Pesa PIN...'
+      } else if (secs < 60) {
+        pollMessage.value = `Verifying with Safaricom... (${secs}s)`
+      } else {
+        pollMessage.value = `Still checking... (${secs}s elapsed)`
+      }
 
-    } catch (_) {}
+    } catch (_) {
+      pollMessage.value = 'Checking payment status...'
+    }
 
-    // Timeout after 2 minutes (24 × 5s)
-    if (attempts >= 24) {
+    // Timeout after 3 minutes (36 × 5s)
+    if (attempts >= 36) {
       clearInterval(pollInterval)
       pollingDialog.value = false
-      appStore.notify('Payment timed out. If you paid, please contact support.', 'warning')
+      appStore.notify(
+        'Payment check timed out. If you paid, refresh this page in a moment.',
+        'warning'
+      )
     }
   }, 5000)
 }
