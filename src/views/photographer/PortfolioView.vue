@@ -111,7 +111,7 @@
         >
           <!-- Image -->
           <v-img
-            :src="item.thumbnail_url || item.image_url"
+            :src="buildUrl(item.thumbnail_url || item.image_url)"
             cover aspect-ratio="1"
             class="portfolio-img"
             @click="openLightbox(item)"
@@ -302,7 +302,7 @@
     <v-dialog v-model="lightboxOpen" max-width="900">
       <v-card rounded="xl" class="pa-0 overflow-hidden" v-if="lightboxItem">
         <v-img
-          :src="lightboxItem.image_url"
+          :src="buildUrl(lightboxItem.image_url)"
           max-height="580"
           contain
           style="background:#000"
@@ -391,6 +391,18 @@ const categoryOptions = [
   'Wedding', 'Portrait', 'Events', 'Fashion', 'Corporate',
   'Nature', 'Real Estate', 'Sports', 'Travel', 'Family', 'Other',
 ]
+
+// ── Backend URL builder ─────────────────────────────────────────────
+const BACKEND = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api')
+  .replace(/\/api\/?$/, '').replace(/\/$/, '')
+
+function buildUrl(path) {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  if (path.startsWith('/storage/')) return `${BACKEND}${path}`
+  if (path.startsWith('storage/'))  return `${BACKEND}/${path}`
+  return `${BACKEND}/storage/${path.replace(/^\/+/, '')}`
+}
 
 // ── Computed ───────────────────────────────────────────────────────
 const categories = computed(() => {
@@ -646,6 +658,7 @@ onMounted(loadPortfolio)
 .category-tabs { display: flex; flex-wrap: wrap; }
 
 /* Empty state */
+.empty-state {}
 .empty-icon {
   width: 96px; height: 96px;
   background: rgba(0,0,0,0.04);
