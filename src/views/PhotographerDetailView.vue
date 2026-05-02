@@ -370,6 +370,21 @@ function formatDate(d) {
 function openLightbox(item) {
   lightboxItem.value = item
   lightboxOpen.value = true
+  // Record the view — fire and forget (don't block UI)
+  recordView(item)
+}
+
+async function recordView(item) {
+  if (!item?.id || !photographer.value?.id) return
+  try {
+    const { data } = await api.post(
+      `/photographers/${photographer.value.id}/portfolio/${item.id}/view`
+    )
+    // Update view count locally so the photographer sees it immediately
+    item.views = data.views ?? (item.views || 0) + 1
+  } catch (_) {
+    // Silently ignore — view tracking should never break the UI
+  }
 }
 
 function onBooked(booking) {

@@ -658,7 +658,6 @@ onMounted(loadPortfolio)
 .category-tabs { display: flex; flex-wrap: wrap; }
 
 /* Empty state */
-.empty-state {}
 .empty-icon {
   width: 96px; height: 96px;
   background: rgba(0,0,0,0.04);
